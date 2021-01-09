@@ -3,18 +3,27 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const expect = require('chai');
 const socket = require('socket.io');
+var helmet = require("helmet");
+const socketGateway = require("./src/socket-gateway")
 
 const fccTestingRoutes = require('./routes/fcctesting.js');
 const runner = require('./test-runner.js');
 
 const app = express();
+const http = require('http').createServer(app)
+const io = socket(http);
+
+socketGateway(io)
 
 app.use('/public', express.static(process.cwd() + '/public'));
 app.use('/assets', express.static(process.cwd() + '/assets'));
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
+app.use(helmet.noSniff());
+app.use(helmet.xssFilter())
+app.use(helmet.noCache())
+app.use(helmet.hidePoweredBy({setTo: 'PHP 7.4.3'}))
 // Index page (static HTML)
 app.route('/')
   .get(function (req, res) {
@@ -34,7 +43,7 @@ app.use(function(req, res, next) {
 const portNum = process.env.PORT || 3000;
 
 // Set up server and tests
-const server = app.listen(portNum, () => {
+const server = http.listen(portNum, () => {
   console.log(`Listening on port ${portNum}`);
   if (process.env.NODE_ENV==='test') {
     console.log('Running Tests...');
